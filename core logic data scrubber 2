@@ -1,0 +1,698 @@
+//const spreadsheet = SpreadsheetApp.getActive();
+function onOpen() {
+  //get spreadsheet name
+  var spreadsheet = SpreadsheetApp.getActive();
+  //make a menu button
+  var menuItems = [ /*{name: 'Merge and highlight', functionName: 'mergeCells'},*/
+                   {name: '1. scrub the Data (wait for this to finish before running others)',functionName: 'scrubTheData'},
+    {name: '2. Format the Headers and Fill Empty Cells',functionName: 'formatHeaders'}];
+  var dataEntryMenu = [{name: '1. update control',functionName: 'controlPrompt'},{name: '2. update mailing status',functionName: 'mailingPrompt'},
+                  {name: '3. update Date',functionName: 'datePrompt'},{name: '4. Update the Legal Description',functionName: 'updateLegal'},
+                       {name: '5. update \'County\'',functionName: 'updateCounty'},
+                       {name: '5. auto-resize columns',functionName: 'resizeColumns'}];
+  spreadsheet.addMenu('First: Scrubbing Menu',menuItems);
+  spreadsheet.addMenu('Second: Data Entry Menu', dataEntryMenu);
+ 
+}
+//freeze the first row
+function freezeFirstRow(){
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = spreadsheet.getSheets()[0];
+  sheet.setFrozenRows(1);
+}
+
+
+function scrubTheData(){
+  var spreadsheet = SpreadsheetApp.getActive();
+  Browser.msgBox('Freezing the first row');
+  freezeFirstRow();
+  Browser.msgBox('Removing entries with international addresses')
+  removeInvalidStates();
+  Browser.msgBox('Removing duplicate entries');
+  removeDuplicates();
+  Browser.msgBox('Removing entries with no mailing address');
+  removeNoMailingAddress();
+  Browser.msgBox('SUCCESS! Now format the headers.');
+ }
+
+//format the headers, insert extra columns, fill out empty blocks
+function formatHeaders(){
+  Browser.msgBox('Changing the names and colors of the applicable headers to prepare for mail merge')
+  changeHeaderNames();
+  Browser.msgBox('Creating and inserting additional data columns at the beginning of the spreadsheet');
+  insertColumns();
+  Browser.msgBox('Moving all highlighted headers to front');
+  moveColumns();
+  Browser.msgBox('Formatting Complete, Fixing Entries');
+  Browser.msgBox('Finding all entries with no \'Owner First Name\' and' 
+                 + ' copying \'Owner Name First Name First\' into the \'Owner First Name\' block');
+  fixFirstName();
+   Browser.msgBox('Adding \'County\' after County Name');
+  fixCounty();
+  Browser.msgBox('Formatting Acreage to 2 decimal places. You can go ahead and move to the Data Entry Menu.');
+  fixAcreage();
+  //update legal description
+ // Browser.msgBox('Updating Legal Description');
+ // updateLegal();
+  Browser.msgBox('PROCESS COMPLETE! Now move to the 2nd menu \'Data Entry\' if you haven\'t already');
+ 
+  
+}
+
+//remove anyone who doesn't live in the u.s. 50 states. 
+//Expand this to include canada and u.s. territories?
+function removeInvalidStates(){
+  //Valid States
+  var states = ['Al','Ak','Az','Ar','Ca','Co','Ct','De','Fl','Ga','Hi','Id','Il','In','Ia',
+                'Ks','Ky','La','Me','Md','Ma','Mi','Mn','Ms','Mo','Mt','Ne','Nv','Nh','Nj','Nm','Ny',
+                'Nc','Nd','Oh','Ok','Or','Pa','Ri','Sc','Sd','Tn','Tx','Ut','Vt','Va','Wa','Wv','Wi','Wy'/*,'Canada'*/];
+  var spreadsheet = SpreadsheetApp.getActive();
+  var data = spreadsheet.getDataRange().getValues();
+  var range = spreadsheet.getDataRange();
+  var stateRange = range;
+  //Logger.log('data length is ' + data.length);
+  
+  //Remove Rogue States from 'State' Column
+  //refresh the data array //I think this one is unncecessary
+  //data = spreadsheet.getDataRange().getValues();
+  //Logger.log(data);
+  //find the 'Mail State' header
+  var mailState, result;
+  for(k=0;k<spreadsheet.getLastColumn();k++){
+    result = data[0][k];
+    if (result === ('Mail State' || 'Mail_State')){mailState = k}
+  }
+    //'i' starting at 1 so the headers don't get checked.
+    for (i = 1; i < data.length;i++){
+      //Logger.log('entry says ' + data[i][17]);
+      for (j = 0; j < states.length; ++j) {
+        //Logger.log('data is ' + data[i][18] + ' state is ' + states[j]);
+        if(data[i][mailState] === states[j]/* || data[i][mailState] === ''*/){ break; }
+        //Logger.log('value of j: ' + j);
+        if (j == states.length - 1) {
+          spreadsheet.deleteRow(i+1);
+          //refresh the data
+          data = spreadsheet.getDataRange().getValues();
+          //reset 'i'.
+          i = 1;
+          
+         Logger.log('script deleted row ' + (i + 1) + ' because the entry said \'' + data[i][mailState] + '\'');
+      }
+    }
+  }
+}
+
+  function removeDuplicates() {
+    var spreadsheet = SpreadsheetApp.getActive();
+    var data = spreadsheet.getDataRange().getValues();
+    var address;
+    //find the right column
+    for (j = 0;j < spreadsheet.getLastColumn();j++) {
+      if (data[0][j] === ('Mail Address'||'Mail_Address')){address = j+1}
+    }
+    //remove duplicates
+    for (i = 1; i < data.length;i++){
+      if (data[i][address] === data[i-1][address]) {
+        spreadsheet.deleteRow(i+1);
+        //refresh the data and counter so I don't have to modify the data array
+        data = spreadsheet.getDataRange().getValues();
+        i = 1;
+        //Logger.log('row ' + (i+1) + ' would have been deleted because it said \'' 
+         //  + data[i][address] + '\' and is a duplicate');
+       }
+    }
+    //////NEW ADDITION ON 2/24/18
+        data = spreadsheet.getDataRange().getValues();
+    var name;
+    //find the right column
+    for (j = 0;j < spreadsheet.getLastColumn();j++) {
+      if (data[0][j] === ('Owner Name (First Name First)' || 'Owner_Name')){name = j+1}
+    }
+    //remove duplicates
+    for (i = 1; i < data.length;i++){
+      if (data[i][name] === data[i-1][name]) {
+        spreadsheet.deleteRow(i+1);
+        //refresh the data and counter so I don't have to modify the data array
+        data = spreadsheet.getDataRange().getValues();
+        i = 1;
+        //Logger.log('row ' + (i+1) + ' would have been deleted because it said \'' 
+         //  + data[i][name] + '\' and is a duplicate');
+       }
+    }
+  }
+    //remove entries that have no mailing address
+  function removeNoMailingAddress() {
+    var spreadsheet = SpreadsheetApp.getActive();
+    var data = spreadsheet.getDataRange().getValues();
+    var address;
+    //find the right column
+    for (j = 0;j < spreadsheet.getLastColumn();j++) {
+      if (data[0][j] === ('Mail Address'||'Mail_Address')){address = j+1}
+    }
+    //remove entries with a blank for the mailing address
+    for (i = 1; i < data.length;i++){
+      if(data[i][address] === '') {
+        spreadsheet.deleteRow(i+1);
+        //refresh the data and counter so I don't have to modify the data array
+        data = spreadsheet.getDataRange().getValues();
+        i = 1;    
+        //Logger.log('row ' + (i+1) + ' would have been deleted because the mailing' 
+         //  + 'address was blank');
+      }
+    }
+  }
+
+//if no first name, copy owner full name to first name block
+function fixFirstName(){
+  var spreadsheet = SpreadsheetApp.getActive();
+  var sheet = spreadsheet.getSheets()[0];
+  var data = spreadsheet.getDataRange().getValues();
+  var range = spreadsheet.getDataRange();
+  var firstName,ownerName,result;
+  var m = 0;
+  //find owner columns
+  for(i=0;i < spreadsheet.getLastColumn();i++){
+    result = data[0][i];
+    if (m==2) break;
+    if ((result === 'Owner First Name')||(result === 'Owner_First_Name')) {firstName = i+1;m++;}
+    if (result === ('Owner Name (First Name First)'||'Owner_Name')) {ownerName = i+1;m++;}
+  }
+  
+  //if no first name, copy owner name FNF to the block
+  for(i=1;i < data.length;i++){
+    result = data[i-1][firstName-1];
+    if (result === '') {
+      range.getCell(i, firstName).setValue(data[i-1][ownerName - 1]);
+      Logger.log('row ' + (i) + ' was empty. Copied ' + range.getCell(i, firstName).getValue()
+      + ' to it.');
+    }
+  }
+}
+      
+    
+
+//Change and color applicable header names
+function changeHeaderNames() {
+  var spreadsheet = SpreadsheetApp.getActive();
+  var sheet = spreadsheet.getSheets()[0];
+  var data = spreadsheet.getDataRange().getValues();
+  var range = spreadsheet.getDataRange();
+  var range2 = spreadsheet.getDataRange();
+  var found = false;
+  var result1;
+  for (m=0;m<spreadsheet.getLastColumn();m++){
+    result1 = data[0][m];
+    if (result1 === 'Owner_Name') { 
+      found = true;
+      Browser.msgBox('Headers already formatted!');
+    }
+  }
+  if (!found){
+  var firstName, ownerName,zipCode,city,state,county,acreage,address;
+   for (i = 0;i < spreadsheet.getLastColumn();i++) {
+    var result = data[0][i];
+    switch (result) {
+      case "Owner First Name":
+        firstName = i+1;
+        break;
+      
+      case 'Owner Name (First Name First)':
+        ownerName = i+1;
+        break;
+      
+      case 'Mail ZIP/ZIP+4':
+        zipCode = i+1;
+        break;
+        
+      case 'Mail City':
+        city = i+1;
+        break;
+        
+      case 'Mail State':
+        state = i+1;
+        break;
+        
+      case 'County Name':
+        county = i+1;
+        break;
+        
+      case 'Lot Acreage':
+        acreage = i+1;
+        break;
+        
+      case 'Mail Address':
+        address = i+1;
+        break;
+        
+      default:
+        break;
+     }
+    }
+  
+    
+  range.getCell(1,firstName).setValue('Owner_First_Name').setBackground('yellow');
+  //Logger.log(range2.getCell(1,firstName).getValue() + ' was changed to ' 
+   //          + range.getCell(1,firstName).getValue());
+  range.getCell(1,ownerName).setValue('Owner_Name').setBackground('yellow');
+  range.getCell(1,zipCode).setValue('Mail_ZIP_ZIP_4').setBackground('yellow');
+  range.getCell(1,city).setValue('Mail_City').setBackground('yellow');
+  range.getCell(1,state).setValue('Mail_State').setBackground('yellow');
+  range.getCell(1,county).setValue('County1').setBackground('yellow');
+  range.getCell(1,acreage).setValue('Lot_Acreage').setBackground('yellow');
+  range.getCell(1,address).setValue('Mail_Address').setBackground('yellow');
+  }
+}
+
+//Add and name extra columns
+function insertColumns(){
+  var spreadsheet = SpreadsheetApp.getActive();
+  var sheet = spreadsheet.getSheets()[0];
+  var range = spreadsheet.getDataRange();
+  
+  sheet.insertColumnsBefore(1,8);
+  
+  //name and highlight the columns
+  range.getCell(1,1).setValue('Date').setBackground('yellow');
+  range.getCell(1,2).setValue('Offer_Price').setBackground('yellow');
+  range.getCell(1,3).setValue('Mailing_Status').setBackground('yellow');
+  range.getCell(1,4).setValue('Control').setBackground('yellow');
+  range.getCell(1,5).setValue('Legal1').setBackground('yellow');
+  range.getCell(1,6).setValue('Notes').setBackground('yellow');
+  range.getCell(1,7).setValue('Phone Number').setBackground('yellow');
+  range.getCell(1,8).setValue('County').setBackground('yellow');
+}
+  
+function moveColumns(){
+  var spreadsheet = SpreadsheetApp.getActiveSheet();
+  var columnspec;
+  var data = spreadsheet.getDataRange().getValues();
+  var firstName,ownerName,zipCode,city,state,county,acreage,address,legal;
+  var result;
+   /*for (i = 0;i < spreadsheet.getLastColumn();i++) {
+    var result = data[0][i];
+    switch (result) {
+      case "Owner_First_Name":
+        firstName = i+1;
+        break;
+      
+      case 'Owner_Name':
+        ownerName = i+1;
+        break;
+      
+      case 'Mail_ZIP_ZIP_4':
+        zipCode = i+1;
+        break;
+        
+      case 'Mail_City':
+        city = i+1;
+        break;
+        
+      case 'Mail_State':
+        state = i+1;
+        break;
+        
+      case 'County1':
+        county = i+1;
+        break;
+        
+      case 'Lot_Acreage':
+        acreage = i+1;
+        break;
+        
+      case 'Mail_Address':
+        address = i+1;
+        break;
+        
+      default:
+        break;
+     }
+    }*/
+  
+  columnspec = spreadsheet.getRange(1, 1);
+  spreadsheet.moveColumns(columnspec,8);
+  columnspec = spreadsheet.getRange(1, 2);
+  spreadsheet.moveColumns(columnspec,8);
+  columnspec = spreadsheet.getRange(1, 3);
+  spreadsheet.moveColumns(columnspec,10);
+  
+  data = spreadsheet.getDataRange().getValues();
+  for (i = 0;i < spreadsheet.getLastColumn();i++) {
+  result = data[0][i];
+    if (result === 'Owner_Name') {
+      ownerName = i+1;
+      break;
+    }
+  }
+  columnspec = spreadsheet.getRange(1,ownerName);
+  spreadsheet.moveColumns(columnspec,1);
+  
+  data = spreadsheet.getDataRange().getValues();
+  for (i = 0;i < spreadsheet.getLastColumn();i++) {
+    result = data[0][i];
+    if (result === 'Mail_Address') {
+      address = i+1;
+      break;
+    }
+  }
+  columnspec = spreadsheet.getRange(1,address);
+  spreadsheet.moveColumns(columnspec,8);
+  
+  data = spreadsheet.getDataRange().getValues();
+  for (i = 0;i < spreadsheet.getLastColumn();i++) {
+    result = data[0][i];
+    if (result === 'Mail_City') {
+      city = i+1;
+      break;
+    }
+  }
+  columnspec = spreadsheet.getRange(1,city);
+  spreadsheet.moveColumns(columnspec,9);
+  
+  data = spreadsheet.getDataRange().getValues();
+  for (i = 0;i < spreadsheet.getLastColumn();i++) {
+    result = data[0][i];
+    if (result === 'Mail_State') {
+      state = i+1;
+      break;
+    }
+  }
+  columnspec = spreadsheet.getRange(1,state);
+  spreadsheet.moveColumns(columnspec,10);
+  
+  data = spreadsheet.getDataRange().getValues();
+  for (i = 0;i < spreadsheet.getLastColumn();i++) {
+    result = data[0][i];
+    if (result === 'Mail_ZIP_ZIP_4') {
+      zipCode= i+1;
+      break;
+    }
+  }
+  columnspec = spreadsheet.getRange(1,zipCode);
+  spreadsheet.moveColumns(columnspec,11);
+  
+  data = spreadsheet.getDataRange().getValues();
+  for (i = 0;i < spreadsheet.getLastColumn();i++) {
+    result = data[0][i];
+    if (result === 'County1') {
+      county = i+1;
+      break;
+    }
+  }
+  columnspec = spreadsheet.getRange(1,county);
+  spreadsheet.moveColumns(columnspec,12);
+  
+  data = spreadsheet.getDataRange().getValues();
+  for (i = 0;i < spreadsheet.getLastColumn();i++) {
+    result = data[0][i];
+    if (result === 'Lot_Acreage') {
+      acreage = i+1;
+      break;
+    }
+  }
+  columnspec = spreadsheet.getRange(1,acreage);
+  spreadsheet.moveColumns(columnspec,13);
+  
+  data = spreadsheet.getDataRange().getValues();
+  for (i = 0;i < spreadsheet.getLastColumn();i++) {
+    result = data[0][i];
+    if (result === 'Owner_First_Name') {
+      firstName = i+1;
+      break;
+    }
+  }
+  columnspec = spreadsheet.getRange(1,firstName);
+  spreadsheet.moveColumns(columnspec,14);
+  
+  data = spreadsheet.getDataRange().getValues();
+  for (i = 0;i < spreadsheet.getLastColumn();i++) {
+    result = data[0][i];
+    if (result === 'Legal1') {
+      legal = i+1;
+      break;
+    }
+  }
+  columnspec = spreadsheet.getRange(1,legal);
+  spreadsheet.moveColumns(columnspec,15);
+  
+  
+  
+  //columnspec = spreadsheet.getRange(1, ownerName);
+  //spreadsheet.moveColumns(columnspec, 1);
+  //var columns = [address,city,state,zipCode,county,acreage,firstName];
+  //var m = 0;
+  //for (k = 9;k<16;k++) {
+    //columnspec = spreadsheet.getRange(1, columns[m])
+    //spreadsheet.moveColumns(columnspec,k);
+    //m++;
+  //}
+} 
+
+//update the legal description column in 'Legal1'
+function updateLegal() {
+  var result;
+  var legal, county, acreage;
+  var spreadsheet = SpreadsheetApp.getActive();
+  var data = spreadsheet.getDataRange().getValues();
+  var endloop = 0;
+  for (i = 0;i < spreadsheet.getLastColumn();i++) {
+    if (endloop === 3) {break;}
+    result = data[0][i];
+    if (result === 'Legal1') {
+      legal = i+1;
+      endloop++;
+    }
+     if (result === 'County1') {
+      county = i+1;
+      endloop++;
+    }
+    if (result === 'Lot_Acreage') {
+      acreage = i+1;
+      endloop++;
+    }
+  }
+
+ 
+  var acreageEntry = spreadsheet.getSheetValues(2, acreage, spreadsheet.getLastRow() - 1,1);
+  var countyEntry = spreadsheet.getSheetValues(2, county, spreadsheet.getLastRow()-1,1);
+  var m = 0;
+  var range = spreadsheet.getDataRange();
+  /*probably slower code
+  for (i = 2;i < spreadsheet.getLastRow() + 1;i++){
+    range.getCell(i, legal).setValue(acreageEntry[m] + ' acre(s) in ' + countyEntry[m]);
+    m++;
+  }
+  */
+  //potentially faster code:
+  //UPDATE: I think it's the same speed. maybe slower bc the first loop has to finish before the 2nd can execute...
+     //It does seem like the second part runs a little quicker though
+  for (i = 1;i < data.length;i++){
+    data[i][legal - 1] = acreageEntry[m] + ' acre(s) in ' + countyEntry[m]; 
+    m++;
+    }
+  for (i = 2;i < spreadsheet.getLastRow() + 1;i++){
+    range.getCell(i, legal).setValue(data[i-1][legal-1]);
+    m++;
+  }
+}
+
+  
+  function fixAcreage() {
+    var spreadsheet = SpreadsheetApp.getActive();
+    var result;
+    var range = spreadsheet.getDataRange();
+    var data = spreadsheet.getDataRange().getValues();
+    var acreage;
+   // var countyEntry = spreadsheet.getSheetValues(2, county, spreadsheet.getLastRow()-2,1);
+    //var sheet = ss.getSheets()[0];
+    
+    //find acreage column
+    for (i = 0;i < spreadsheet.getLastColumn();i++){
+     result = data[0][i];
+     if (result === ('Lot_Acreage')) {
+      acreage = i+1;
+      break;
+    }
+   }
+      for (i = 2;i < spreadsheet.getLastRow() + 1;i++){
+        range.getCell(i,acreage).setNumberFormat('0.00');
+      }
+    }
+
+function testFcn(){
+  var spreadsheet = SpreadsheetApp.getActive();
+  var data = spreadsheet.getDataRange().getValues();
+  data[1][0] = 'this is a test';
+  spreadsheet.getDataRange().setValues(data);
+}
+ 
+function fixCounty(){
+  var spreadsheet = SpreadsheetApp.getActive();
+  var data = spreadsheet.getDataRange().getValues();
+  var range = spreadsheet.getDataRange();
+  var county;
+  var result;
+      //find county column
+    for (i = 0;i <= spreadsheet.getLastColumn();i++){
+     result = data[0][i];
+      if ((result === 'County1')||(result === 'County Name')) {
+      county = i;
+      break;
+    }
+   }
+  var placeholder;
+  var m = 0;
+  var entry;
+ 
+  for (i=1;i < data.length;i++){
+    entry = data[i][county];
+    placeholder = Utilities.parseCsv(entry,',');
+    data[i][county]='';
+    for (k=0;k<2;k++){//column
+    for (j = 0; j < placeholder.length;j++){//row
+      data[i][county] += placeholder[j][k];
+    }
+      if((k==0)&&(j==placeholder.length)){ 
+        data[i][county] += ' County,';
+        m++;
+      }
+  }
+  }
+    for(i=1;i<data.length;i++){
+      range.getCell(i+1,county+1).setValue(data[i][county]);
+    }
+  //range.setValues(data);
+}    
+
+//fills out the 'County' Column.  This is different from 'County1' which also includes the word 'county' and the state
+function updateCounty(){
+  var spreadsheet = SpreadsheetApp.getActive();
+  var data = spreadsheet.getDataRange().getValues();
+  var range = spreadsheet.getDataRange();
+  var county,county1,placeholder,m=0,entry,result;
+      //find county column
+    for (i = 0;i <= spreadsheet.getLastColumn();i++){
+     result = data[0][i];
+      if (result === 'County') {
+      county = i;
+      break;
+    }
+   }
+  //find 'County1' column
+      for (i = 0;i <= spreadsheet.getLastColumn();i++){
+     result = data[0][i];
+      if (result === 'County1') {
+      county1 = i;
+      break;
+    }
+   }
+ 
+  for (i=1;i < data.length;i++){
+    entry = data[i][county1];
+    //i tried to use ' County' as the delimiter but error 'Cannot convert County to (class)' thrown.
+    //may need to just ask user how many words the county name is or something else creative.
+    placeholder = Utilities.parseCsv(entry,' ');
+    var k = 0;
+   //while (placeholder[0][k]) {
+        data[i][county]= placeholder[0][0];
+    //  k++;
+   // }
+    /*for (k=0;k<placeholder[k].length;k++){//column
+      data[k+1][county]+= placeholder[0][k];
+    }*/
+   /* for (j = 0; j < placeholder.length;j++){//row
+      data[i][county] += placeholder[j][k];
+    }*/
+
+  }
+    for(i=1;i<data.length;i++){
+      range.getCell(i+1,county+1).setValue(data[i][county]);
+    }
+}    
+
+function resizeColumns(){
+  var spreadsheet = SpreadsheetApp.getActive();
+  var sheet = spreadsheet.getSheets()[0];
+  for (i=1;i<17;i++){
+    sheet.autoResizeColumn(i);
+  }
+}
+
+function controlPrompt(){
+  var spreadsheet = SpreadsheetApp.getActive();
+   // Display a dialog box with a message, input field, and "Yes" and "No" buttons. The user can
+ // also close the dialog by clicking the close button in its title bar.
+ var ui = SpreadsheetApp.getUi();
+ var response = ui.prompt('What would you like the first control # to be?');
+ var controlNum = response.getResponseText();
+  controlNum = +controlNum;
+  var data = spreadsheet.getDataRange().getValues();
+  var range = spreadsheet.getDataRange();
+ var control,response;
+  for (i = 0;i <= spreadsheet.getLastColumn();i++){
+     result = data[0][i];
+      if (result === 'Control') {
+      control = i+1;
+      break;
+    }
+   }
+  for(i=2;i<spreadsheet.getLastRow()+1;i++){
+    range.getCell(i,control).setValue(controlNum);
+    controlNum++;
+  }
+}
+
+function mailingPrompt(){
+  var spreadsheet = SpreadsheetApp.getActive();
+   // Display a dialog box with a message, input field, and "Yes" and "No" buttons. The user can
+ // also close the dialog by clicking the close button in its title bar.
+ var ui = SpreadsheetApp.getUi();
+ var response = ui.prompt('What would you like the Mailing Status to be?');
+ var mailingStat = response.getResponseText();
+  var data = spreadsheet.getDataRange().getValues();
+  var range = spreadsheet.getDataRange();
+  var mailing,response;
+  for (i = 0;i <= spreadsheet.getLastColumn();i++){
+     result = data[0][i];
+      if (result === 'Mailing_Status') {
+      mailing = i+1;
+      break;
+    }
+   }
+  for(i=2;i<spreadsheet.getLastRow()+1;i++){
+    range.getCell(i,mailing).setValue(mailingStat);
+  }
+}
+
+function datePrompt(){
+  var spreadsheet = SpreadsheetApp.getActive();
+   // Display a dialog box with a message, input field, and "Yes" and "No" buttons. The user can
+ // also close the dialog by clicking the close button in its title bar.
+ var ui = SpreadsheetApp.getUi();
+ var response = ui.prompt('What would you like the Date these offers are due by to be? (whatever format you want)');
+ var dateEntry = response.getResponseText();
+  var data = spreadsheet.getDataRange().getValues();
+  var range = spreadsheet.getDataRange();
+  var date,response;
+  for (i = 0;i <= spreadsheet.getLastColumn();i++){
+     result = data[0][i];
+      if (result === 'Date') {
+      date = i+1;
+      break;
+    }
+   }
+  for(i=2;i<spreadsheet.getLastRow()+1;i++){
+    range.getCell(i,date).setValue(dateEntry);
+  }
+}
+
+    
+
+
+ 
+
+  
+  
+  
+  
+           
+    
