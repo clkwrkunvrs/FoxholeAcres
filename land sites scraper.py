@@ -1,3 +1,8 @@
+#Progess:
+'''Trying to get APN, but getting message 'loading tax data' when i pull the tax data from landsofamerica. Need to see if I can introduce a delay
+or something to allow the http reqeust time to fetch that data'''
+
+
 #Land and Farm and Lands of America Scraper
 import sys
 import requests
@@ -8,7 +13,7 @@ def main() :
     #landandfarm scrape
     #***********url builder***************
     #get the state
-    state = raw_input("What is the 2-letter abbreviatino of the state you want to search? \n\r Note:If searching by entire state, type the whole state name: \n")
+    state = raw_input("What is the 2-letter abbreviation of the state you want to search? \n\r Note:If searching by entire state, type the whole state name: \n")
     type(state)
     #get the location
     location = raw_input("What is the name of the location you want to search?: ")
@@ -22,7 +27,7 @@ def main() :
     	url = "https://www.landandfarm.com/search/" + state + "-land-for-sale/?CurrentPage=1&IsResidence=False&SortBy=Size&SortOrder=Desc"
     else:
     	url ="https://www.landandfarm.com/search/" + state + "/" + location + "-land-for-sale/?CurrentPage=1&IsResidence=False&SortBy=Size&SortOrder=Desc"
-
+    '''
     print("****************LAND AND FARM DATA********************\n")
     r = requests.get(url)
     soup = BeautifulSoup(r.text,'html.parser')
@@ -65,7 +70,7 @@ def main() :
         currentPage = currentPage + 1
         print("current page is " + str(currentPage) + " of " + str(numPages))
 
-
+        '''
     #************lands of america scrape*******************
     print("\n****************LANDS OF AMERICA DATA*******************\n")
     url = "https://www.landsofamerica.com/" + location;
@@ -101,10 +106,45 @@ def main() :
         results3 = soup.find_all('span',attrs={'class':'size'})
         #get location
         results4 = soup.find_all(attrs={"itemprop":"name"})
+        #lotURL = soup.find_all('div',{"class": ["clearfix list-group-item list-property free"]})
+        lotURL = soup.find_all('h3',attrs={'class':'panel-title'})
+        i = 0
+
+         #get the URL for each entry
+        while(i < len(lotURL)):
+          swap = str(lotURL[i])
+          #print(swap)
+          #find start of URL
+          indexStart = swap.find('/property')
+          #slice everything before that off
+          swap = swap[indexStart:]
+          #find end of URL
+          indexEnd = swap.find('">')
+          #slice everything after URL off
+          swap = swap[0:indexEnd]
+          #give it back to the original variable
+          lotURL[i] = swap
+          i = i + 1
+
+
+        #while(i < len(lotURL)):
+        #)
+
         #concatenate and print all of this information to terminal
         while counter < len(results2):
-    	       print(results3[counter].text + ".......... " + results2[counter].text  + ".........."+ results4[counter]['content'])
-    	       counter = counter + 1
+    	       #print(results3[counter].text + ".......... " + results2[counter].text  + ".........."+ results4[counter]['content'])
+             #get APN
+             url = "https://www.landsofamerica.com" + lotURL[counter]
+             print(url)
+             r = requests.get(url)
+             soup = BeautifulSoup(r.text,'html.parser')
+             #list(soup.children)
+             #('p', class_='outer-text')
+             apn = soup.find_all('div',{'class':'parcelTaxDetails'})
+             #apn = BeautifulSoup(apn.text, 'html.parser')
+             #apn = apn.find_all('td',{})
+             print(str(apn[0]) + '\n')
+             counter = counter + 1
         #reset the array iterator
         counter = 0
         #increment the page number
