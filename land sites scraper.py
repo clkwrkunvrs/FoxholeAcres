@@ -18,6 +18,7 @@ def main() :
     #get the location
     location = raw_input("What is the name of the location you want to search?: ")
     type(location)
+    urlOption = raw_input("Do you want to display URLs for Lands of America?\n Answer with a lowercase y or n: ")
     #format the location for the url
     location = location.replace(" ",'-')
     #show what the user typed
@@ -27,7 +28,7 @@ def main() :
     	url = "https://www.landandfarm.com/search/" + state + "-land-for-sale/?CurrentPage=1&IsResidence=False&SortBy=Size&SortOrder=Desc"
     else:
     	url ="https://www.landandfarm.com/search/" + state + "/" + location + "-land-for-sale/?CurrentPage=1&IsResidence=False&SortBy=Size&SortOrder=Desc"
-    '''
+    
     print("****************LAND AND FARM DATA********************\n")
     r = requests.get(url)
     soup = BeautifulSoup(r.text,'html.parser')
@@ -70,7 +71,7 @@ def main() :
         currentPage = currentPage + 1
         print("current page is " + str(currentPage) + " of " + str(numPages))
 
-        '''
+        
     #************lands of america scrape*******************
     print("\n****************LANDS OF AMERICA DATA*******************\n")
     url = "https://www.landsofamerica.com/" + location;
@@ -132,19 +133,20 @@ def main() :
 
         #concatenate and print all of this information to terminal
         while counter < len(results2):
-    	       #print(results3[counter].text + ".......... " + results2[counter].text  + ".........."+ results4[counter]['content'])
+          print(results3[counter].text + ".......... " + results2[counter].text  + ".........."+ results4[counter]['content'])
              #get APN
-             url = "https://www.landsofamerica.com" + lotURL[counter]
-             print(url)
-             r = requests.get(url)
-             soup = BeautifulSoup(r.text,'html.parser')
+          r = "https://www.landsofamerica.com" + lotURL[counter]
+          if(urlOption == "y"):
+            print(url + '\n')
+             #r = requests.get(url)
+             #soup = BeautifulSoup(r.text,'html.parser')
              #list(soup.children)
              #('p', class_='outer-text')
-             apn = soup.find_all('div',{'class':'parcelTaxDetails'})
+             #apn = soup.find_all('div',{'class':'parcelTaxDetails'})
              #apn = BeautifulSoup(apn.text, 'html.parser')
              #apn = apn.find_all('td',{})
-             print(str(apn[0]) + '\n')
-             counter = counter + 1
+             #print(str(apn[0]) + '\n')
+          counter = counter + 1
         #reset the array iterator
         counter = 0
         #increment the page number
