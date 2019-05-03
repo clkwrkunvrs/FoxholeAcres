@@ -1,0 +1,273 @@
+'This excel vba sub makes new tabs, formats headers, concatenates address street pieces (house num, street suffix,...),
+'and highlights interesting headers
+'It is indended to be used on raw real estate data from DataTree
+
+'Travis Keller
+'Version 2
+'5/3/2019
+
+'This module was produced by Travis Keller for distribution
+'solely to Joe Martin. Please direct any inquiries to Travis
+'at travis@foxholeacres.com or XXX-XXX-XXXX
+
+Sub ChangeColumnNames()
+    
+
+
+Dim ws As Worksheet
+Dim lRow As Integer
+Dim lCol As Integer
+Dim ws1 As Worksheet
+
+Dim actual As Variant
+Dim desired As Variant
+Dim interest As Variant
+
+Dim i As Integer
+
+Const SITUSADD As String = "Situs_Full"
+Const AREA As String = "Lot Area"
+Const ZONING As String = "Zoning"
+Const LANDUSE As String = "Land_Use"
+Const LONGIT As String = "Longitude"
+Const LATIT As String = "Latitude"
+Const PROPTAX As String = "Property_Tax"
+Const PERCASSD As String = "% of Assessed"
+Const TOTVAL As String = "Total_Value"
+Const PRICE As String = "Offer_Price"
+Const ACRE As String = "Acreage"
+Const SITZIP As String = "Situs_ZIP"
+Const LEGAL As String = "Legal_Description"
+Const APN As String = "APN_Formatted"
+Const MZIP As String = "Mail_ZipZip4"
+Const MSTATE As String = "Mail_State"
+Const MCITY As String = "Mail_City"
+Const MSTREET As String = "Mail_Street"
+Const COUNTY As String = "County"
+Const OWNRMNM As String = "Owner_Mailing_Name"
+Const OWNRNAM As String = "Owner_First_Name"
+Const RFRNC As String = "Reference"
+
+''Create Tabs
+    Set ws1 = ThisWorkbook.Sheets(1)
+    Set ws = ThisWorkbook.Sheets.Add(After:= _
+             ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+    
+    Sheets(1).Name = "Raw_Data"
+    ws1.Copy ws ' ThisWorkbook.Sheets(Sheets.Count)
+
+'find the last row with text in it
+lRow = Cells(Rows.Count, 1).End(xlUp).Row
+
+'yellow cells
+actual = Array("SITUS FULL ADDRESS", "LOT AREA", "ZONING", "LAND USE", "LONGITUDE", _
+            "LATITUDE", "PROPERTY TAX", "% of Assessed", "ASSESSED TOTAL VALUE", _
+            "Offer_Price", "LOT ACREAGE", "SITUS ZIP CODE", "LEGAL DESCRIPTION", "APN - FORMATTED", _
+            "MAIL ZIP/ZIP+4", "MAIL STATE", "MAIL CITY", "MAIL STREET NAME", _
+            "COUNTY", "OWNER MAILING NAME", "OWNER 1 FIRST NAME", "Reference")
+desired = Array(SITUSADD, AREA, ZONING, LANDUSE, LONGIT, LATIT, PROPTAX, PERCASSD, TOTVAL, _
+            PRICE, ACRE, SITZIP, LEGAL, APN, MZIP, MSTATE, MCITY, MSTREET, COUNTY, OWNRMNM, OWNRNAMM, RFRNC)
+'Green cells
+interest = Array("SUBDIVISION", "TOWNSHIP", "RANGE", "SECTION", "MARKET VALUE", "LIVING AREA", "MARKET IMPROVEMENT VALUE", _
+            "MARKET IMPROVEMENT PERCENTAGE", "COUNTY LAND USE")
+'            NOTE: SALE DATA AND SALE PRICE NOT INCLUDED IN THE DATATREE SAMPLE
+'1. Insert New Columns
+
+    Columns("A:C").Insert Shift:=xlToRight, _
+      CopyOrigin:=xlFormaFromRightOrBelow 'or xlFormatFromRightOrBelow
+
+'1.1 Name New Columns
+    Cells(1, 1).Value = "Reference"
+    Cells(1, 2).Value = "Offer_Price"
+    Cells(1, 3).Value = "% of Assessed"
+
+'2. Put everything where it goes
+'Insert Columns to the left of Column A
+    For i = 0 To 21
+        'Find column
+        Set aCell = Worksheets("Raw_Data (2)").Rows(1).Find(what:=actual(i), LookIn:=xlValues, _
+            LookAt:=xlWhole, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+            MatchCase:=True, SearchFormat:=True)
+        'Change Column Name
+        Cells(1, aCell.Column).Value = desired(i)
+        'Change Column Color
+        Cells(1, aCell.Column).Interior.ColorIndex = 27
+        'Move Column
+        Columns(aCell.Column).Cut
+        Columns("A").Insert
+    Next i
+
+'Fix owner first name header
+    Cells(1, 2).Value = OWNRNAM
+
+'If no owner first name, copy whole name of owner name (if company)
+    For i = 2 To lRow
+        If Cells(i, 2).Value = "" Then
+            Cells(i, 2).Value = Cells(i, 3).Value
+        End If
+    Next i
+
+'Fix street address
+'MAIL HOUSE NUMBER MAIL STREET NAME SUFFIX MAIL UNIT NUMBER
+    Set houseNum = Worksheets("Raw_Data (2)").Rows(1).Find(what:="MAIL HOUSE NUMBER")
+    Set mailStreet = Worksheets("Raw_Data (2)").Rows(1).Find(what:="Mail_Street")
+    Set streetSuffix = Worksheets("Raw_Data (2)").Rows(1).Find(what:="MAIL STREET NAME SUFFIX")
+    Set unitNum = Worksheets("Raw_Data (2)").Rows(1).Find(what:="MAIL UNIT NUMBER")
+
+    For i = 2 To lRow
+        Cells(i, mailStreet.Column).Value = Cells(i, houseNum.Column).Value & " " & Cells(i, mailStreet.Column).Value
+        'if theres a street suffix, add it
+        If Not Cells(i, streetSuffix.Column).Value = "" Then
+            Cells(i, mailStreet.Column).Value = Cells(i, mailStreet.Column).Value & _
+            " " & Cells(i, streetSuffix.Column).Value
+        End If
+        'if theres a unit number, add a '#' and the unit number
+        If Not Cells(i, unitNum.Column).Value = "" Then
+            Cells(i, mailStreet.Column).Value = Cells(i, mailStreet.Column).Value & " #" & _
+            Cells(i, unitNum.Column).Value
+        End If
+    Next i
+
+'Freeze Top Row
+    With ActiveWindow
+        .SplitColumn = 0
+        .SplitRow = 1
+    End With
+
+'Color interesting headers in green
+    For i = 0 To UBound(interest) - LBound(interest)
+        Set headers = Worksheets("Raw_Data (2)").Rows(1).Find(what:=interest(i))
+        Cells(1, headers.Column).Interior.ColorIndex = 4
+        Columns(headers.Column).Cut
+        Columns(23).Insert
+    Next i
+
+'Rename the sheet
+Sheets(2).Name = "Scrub"
+'Delete the extra sheet
+Sheets(3).Delete
+
+End Sub
+
+'A. New
+'Reference
+'1. Insert a column with a header named 'Reference'
+
+'B.
+'Owner_First_Name
+'1.Change Owner 1 First Name Column to
+'Owner_First_Name
+'2. If first name blank, copy full name from
+'Owner Name 1 Full block
+
+'C.
+'Owner_Mailing_Name
+'1. Change Owner Mailing Name to
+'Owner Mailing Name
+
+'D.
+'County
+'1.Change COUNTY to County
+
+'E.
+'Mail_Street
+'1. Concatenate Mail House, Mail Street,
+' and Mail Street Suffix
+
+'F.
+'Mail_City
+'1. Change Mail City to Mail_City
+
+'G.
+'Mail_State
+'1. Change Mail State to Mail_State
+
+'H.
+'Mail_ZipZip4
+'Change MAIL ZIP/ZIP+4 to Mail_ZipZip4
+
+'I.
+'APN_FORMATTED
+'1. Change APN- FORMATTED to APN_FORMATTED
+
+'J.
+'Legal_Description
+'1. Change LEGAL DESCRIPTION to Legal_Description
+
+'K.
+'Situs_ZIP
+'1. Change SITUS ZIP CODE to Situs_Zip
+
+'L.
+'Acreage
+'1. Change LOT ACREAGE to Acreage
+
+'M. New
+'Offer_Price
+'1. Insert a Column Named Offer_Price at Column M
+
+'N.
+'Total_Value
+'1. Rename ASSESSED TOTAL VALUE to Total_Value
+
+'O. New
+'% of Assessed
+'1. Insert a column named % of Assessed
+
+'P.
+'Property Tax
+'1. Move PROPERTY TAX Column to Column P
+
+'Q.
+'Latitude
+'1. Move to Column Q
+
+'R.
+'Longitude
+'1. Move to Column R
+
+'S.
+'Land Use
+'.1 MOve to Column S
+
+'T.
+'Zoning
+'1. Move to Column T
+
+'U.
+'Lot Area
+'1. Move to Column U
+
+'V
+'Situs_Full
+'1. Rename from SITUS FULL ADDRESS to Situs_Full
+'2. MOve to Column V
+
+
+'
+'
+'
+'
+''Columns
+''A.Reference
+''B.Owner_First_Name
+''C.Owner_Mailing_Name
+''D.County
+''E.Mail_Street
+''F.Mail_City
+''G.Mail_State
+''H.Mail_ZipZip4
+''I.APN_FORMATTED
+''J.Legal_Description
+''K.Situs ZIP
+''L.Acreage
+''M.Offer_Price
+''N.Total Value
+''O.  % of Assessed
+''P.Property Tax
+''Q.Latitude
+''R.Longitude
+''S.Land Use
+''T.Zoning
+''U.Lot Area
+''V.Situs Full
