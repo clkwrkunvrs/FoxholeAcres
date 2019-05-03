@@ -55,11 +55,6 @@ Const RFRNC As String = "Reference"
     
     Sheets(1).Name = "Raw_Data"
     ws1.Copy ws ' ThisWorkbook.Sheets(Sheets.Count)
-   
-''1. Insert New columns
-''2. Put everything where it goes
-''3. Rename Columns
-
 
 'find the last row with text in it
 lRow = Cells(Rows.Count, 1).End(xlUp).Row
@@ -142,7 +137,6 @@ interest = Array("SUBDIVISION", "TOWNSHIP", "RANGE", "SECTION", "MARKET VALUE", 
 'Color interesting headers in green
     For i = 0 To UBound(interest) - LBound(interest)
         Set headers = Worksheets("Raw_Data (2)").Rows(1).Find(what:=interest(i))
-       'Set headers = Worksheets("Raw_Data (2)").Rows(1).Find(what:=interest(i))
         Cells(1, headers.Column).Interior.ColorIndex = 4
         Columns(headers.Column).Cut
         Columns(23).Insert
