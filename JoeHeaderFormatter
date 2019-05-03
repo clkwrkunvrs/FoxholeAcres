@@ -1,13 +1,29 @@
+'This excel vba sub makes new tabs, formats headers, concatenates address street pieces (house num, street suffix,...),
+'and highlights interesting headers
+'It is indended to be used on raw real estate data from DataTree
+
+'Travis Keller
+'Version 2
+'5/3/2019
+
+'This module was produced by Travis Keller for distribution
+'solely to Joe Martin. Please direct any inquiries to Travis
+'at travis@foxholeacres.com or XXX-XXX-XXXX
+
 Sub ChangeColumnNames()
-'1. Insert New columns
-'2. Put everything where it goes
-'3. Rename Columns
+    
+
+
+Dim ws As Worksheet
+Dim lRow As Integer
+Dim lCol As Integer
+Dim ws1 As Worksheet
+
 Dim actual As Variant
 Dim desired As Variant
-Dim interst As Variant
+Dim interest As Variant
 
 Dim i As Integer
-Dim lRow As Integer
 
 Const SITUSADD As String = "Situs_Full"
 Const AREA As String = "Lot Area"
@@ -32,9 +48,23 @@ Const OWNRMNM As String = "Owner_Mailing_Name"
 Const OWNRNAM As String = "Owner_First_Name"
 Const RFRNC As String = "Reference"
 
+''Create Tabs
+    Set ws1 = ThisWorkbook.Sheets(1)
+    Set ws = ThisWorkbook.Sheets.Add(After:= _
+             ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+    
+    Sheets(1).Name = "Raw_Data"
+    ws1.Copy ws ' ThisWorkbook.Sheets(Sheets.Count)
+   
+''1. Insert New columns
+''2. Put everything where it goes
+''3. Rename Columns
+
+
 'find the last row with text in it
 lRow = Cells(Rows.Count, 1).End(xlUp).Row
 
+'yellow cells
 actual = Array("SITUS FULL ADDRESS", "LOT AREA", "ZONING", "LAND USE", "LONGITUDE", _
             "LATITUDE", "PROPERTY TAX", "% of Assessed", "ASSESSED TOTAL VALUE", _
             "Offer_Price", "LOT ACREAGE", "SITUS ZIP CODE", "LEGAL DESCRIPTION", "APN - FORMATTED", _
@@ -42,6 +72,7 @@ actual = Array("SITUS FULL ADDRESS", "LOT AREA", "ZONING", "LAND USE", "LONGITUD
             "COUNTY", "OWNER MAILING NAME", "OWNER 1 FIRST NAME", "Reference")
 desired = Array(SITUSADD, AREA, ZONING, LANDUSE, LONGIT, LATIT, PROPTAX, PERCASSD, TOTVAL, _
             PRICE, ACRE, SITZIP, LEGAL, APN, MZIP, MSTATE, MCITY, MSTREET, COUNTY, OWNRMNM, OWNRNAMM, RFRNC)
+'Green cells
 interest = Array("SUBDIVISION", "TOWNSHIP", "RANGE", "SECTION", "MARKET VALUE", "LIVING AREA", "MARKET IMPROVEMENT VALUE", _
             "MARKET IMPROVEMENT PERCENTAGE", "COUNTY LAND USE")
 '            NOTE: SALE DATA AND SALE PRICE NOT INCLUDED IN THE DATATREE SAMPLE
@@ -59,7 +90,7 @@ interest = Array("SUBDIVISION", "TOWNSHIP", "RANGE", "SECTION", "MARKET VALUE", 
 'Insert Columns to the left of Column A
     For i = 0 To 21
         'Find column
-        Set aCell = Sheet1.Rows(1).Find(what:=actual(i), LookIn:=xlValues, _
+        Set aCell = Worksheets("Raw_Data (2)").Rows(1).Find(what:=actual(i), LookIn:=xlValues, _
             LookAt:=xlWhole, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
             MatchCase:=True, SearchFormat:=True)
         'Change Column Name
@@ -83,10 +114,10 @@ interest = Array("SUBDIVISION", "TOWNSHIP", "RANGE", "SECTION", "MARKET VALUE", 
 
 'Fix street address
 'MAIL HOUSE NUMBER MAIL STREET NAME SUFFIX MAIL UNIT NUMBER
-    Set houseNum = Sheet1.Rows(1).Find(what:="MAIL HOUSE NUMBER")
-    Set mailStreet = Sheet1.Rows(1).Find(what:="Mail_Street")
-    Set streetSuffix = Sheet1.Rows(1).Find(what:="MAIL STREET NAME SUFFIX")
-    Set unitNum = Sheet1.Rows(1).Find(what:="MAIL UNIT NUMBER")
+    Set houseNum = Worksheets("Raw_Data (2)").Rows(1).Find(what:="MAIL HOUSE NUMBER")
+    Set mailStreet = Worksheets("Raw_Data (2)").Rows(1).Find(what:="Mail_Street")
+    Set streetSuffix = Worksheets("Raw_Data (2)").Rows(1).Find(what:="MAIL STREET NAME SUFFIX")
+    Set unitNum = Worksheets("Raw_Data (2)").Rows(1).Find(what:="MAIL UNIT NUMBER")
 
     For i = 2 To lRow
         Cells(i, mailStreet.Column).Value = Cells(i, houseNum.Column).Value & " " & Cells(i, mailStreet.Column).Value
@@ -107,20 +138,22 @@ interest = Array("SUBDIVISION", "TOWNSHIP", "RANGE", "SECTION", "MARKET VALUE", 
         .SplitColumn = 0
         .SplitRow = 1
     End With
-    
-'Color interesting headers in green
-'TOWNSHIP    RANGE   SECTION SUBDIVISION
-'ASSESSED LAND VALUE
-'MARKET LAND VALUE
 
+'Color interesting headers in green
     For i = 0 To UBound(interest) - LBound(interest)
-        Set headers = Sheet1.Rows(1).Find(what:=interest(i))
-       'Set headers = Sheet1.Rows(1).Find(what:=interest(i))
+        Set headers = Worksheets("Raw_Data (2)").Rows(1).Find(what:=interest(i))
+       'Set headers = Worksheets("Raw_Data (2)").Rows(1).Find(what:=interest(i))
         Cells(1, headers.Column).Interior.ColorIndex = 4
         Columns(headers.Column).Cut
         Columns(23).Insert
     Next i
 
+'Rename the sheet
+Sheets(2).Name = "Scrub"
+'Delete the extra sheet
+Sheets(3).Delete
+
+End Sub
 
 'A. New
 'Reference
@@ -216,31 +249,31 @@ interest = Array("SUBDIVISION", "TOWNSHIP", "RANGE", "SECTION", "MARKET VALUE", 
 '1. Rename from SITUS FULL ADDRESS to Situs_Full
 '2. MOve to Column V
 
-End Sub
 
-
-
-
-'Columns
-'A.Reference
-'B.Owner_First_Name
-'C.Owner_Mailing_Name
-'D.County
-'E.Mail_Street
-'F.Mail_City
-'G.Mail_State
-'H.Mail_ZipZip4
-'I.APN_FORMATTED
-'J.Legal_Description
-'K.Situs ZIP
-'L.Acreage
-'M.Offer_Price
-'N.Total Value
-'O.  % of Assessed
-'P.Property Tax
-'Q.Latitude
-'R.Longitude
-'S.Land Use
-'T.Zoning
-'U.Lot Area
-'V.Situs Full
+'
+'
+'
+'
+''Columns
+''A.Reference
+''B.Owner_First_Name
+''C.Owner_Mailing_Name
+''D.County
+''E.Mail_Street
+''F.Mail_City
+''G.Mail_State
+''H.Mail_ZipZip4
+''I.APN_FORMATTED
+''J.Legal_Description
+''K.Situs ZIP
+''L.Acreage
+''M.Offer_Price
+''N.Total Value
+''O.  % of Assessed
+''P.Property Tax
+''Q.Latitude
+''R.Longitude
+''S.Land Use
+''T.Zoning
+''U.Lot Area
+''V.Situs Full
